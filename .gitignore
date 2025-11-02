@@ -1,0 +1,24 @@
+# Rust / Cargo
+target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test snapshots
+test_snapshots/
+
+# Soroban
+.soroban/
+*.wasm
+*.optimized.wasm
