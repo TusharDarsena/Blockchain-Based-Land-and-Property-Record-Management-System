@@ -933,6 +933,11 @@ cargo test
 - **Size Reduction:** 39.2%
 - **SDK Version:** soroban-sdk 23.1.0
 
+## 📊 Contract details
+
+**contract id :** CC4TOGUUMX42QP2LZHUWV3I3YW2MXBCOATDF6E6XJRIMEVFITRTSNRAW
+![alt text](<WhatsApp Image 2025-11-02 at 11.26.48_850308ae.jpg>)
+
 ## 🔐 Security Features
 
 - **Authentication:** All state-changing functions require caller authentication
