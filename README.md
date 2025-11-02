@@ -933,10 +933,13 @@ cargo test
 - **Size Reduction:** 39.2%
 - **SDK Version:** soroban-sdk 23.1.0
 
-## 📊 Contract details
+## 📊 Contract Details
 
-**contract id :** CC4TOGUUMX42QP2LZHUWV3I3YW2MXBCOATDF6E6XJRIMEVFITRTSNRAW
-![alt text](<WhatsApp Image 2025-11-02 at 11.26.48_850308ae.jpg>)
+**Contract ID:** CC4TOGUUMX42QP2LZHUWV3I3YW2MXBCOATDF6E6XJRIMEVFITRTSNRAW
+
+**Live on Stellar Testnet** - [View on Stellar Expert](https://stellar.expert/explorer/testnet/contract/CC4TOGUUMX42QP2LZHUWV3I3YW2MXBCOATDF6E6XJRIMEVFITRTSNRAW)
+
+![Contract Deployment](contract-deployment.jpg)
 
 ## 🔐 Security Features
 
