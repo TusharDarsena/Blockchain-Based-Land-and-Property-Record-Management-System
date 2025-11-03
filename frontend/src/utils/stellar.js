@@ -44,12 +44,31 @@ export const getFreighterPublicKey = async () => {
 /**
  * Sign transaction with Freighter
  */
-export const signTransactionWithFreighter = async (xdr, network = NETWORK_PASSPHRASE) => {
+export const signTransactionWithFreighter = async (xdr, networkPassphrase = NETWORK_PASSPHRASE) => {
   try {
-    const signedXdr = await signTransaction(xdr, { network })
+    console.log('Signing with Freighter...')
+    console.log('Network passphrase:', networkPassphrase)
+    console.log('XDR length:', xdr.length)
+    
+    // Freighter expects the network passphrase in the options
+    const signedXdr = await signTransaction(xdr, {
+      networkPassphrase: networkPassphrase,
+      accountToSign: await getPublicKey() // Ensure we're using the correct account
+    })
+    
+    console.log('Successfully signed with Freighter')
     return signedXdr
   } catch (error) {
     console.error('Error signing transaction:', error)
+    console.error('Error details:', JSON.stringify(error, null, 2))
+    
+    // Provide more helpful error message
+    if (error.message?.includes('User declined')) {
+      throw new Error('Transaction was rejected by user')
+    } else if (error.message?.includes('internal error')) {
+      throw new Error('Freighter wallet error. Please ensure:\n1. Your wallet is unlocked\n2. You have sufficient XLM for fees\n3. You are on the correct network (Testnet)')
+    }
+    
     throw error
   }
 }

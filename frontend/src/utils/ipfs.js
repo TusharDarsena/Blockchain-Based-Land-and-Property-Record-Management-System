@@ -1,117 +1,98 @@
-import { create } from 'ipfs-http-client'
 import { toast } from 'react-toastify'
 
-// IPFS Configuration
-const IPFS_HOST = import.meta.env.VITE_IPFS_HOST || 'ipfs.infura.io'
-const IPFS_PORT = import.meta.env.VITE_IPFS_PORT || 5001
-const IPFS_PROTOCOL = import.meta.env.VITE_IPFS_PROTOCOL || 'https'
-
-// Create IPFS client
-let ipfsClient = null
-
-const getIPFSClient = () => {
-  if (!ipfsClient) {
-    try {
-      ipfsClient = create({
-        host: IPFS_HOST,
-        port: IPFS_PORT,
-        protocol: IPFS_PROTOCOL,
-      })
-    } catch (error) {
-      console.error('Failed to create IPFS client:', error)
-      toast.error('Failed to connect to IPFS')
-      return null
-    }
-  }
-  return ipfsClient
+/**
+ * Generate SHA-256 hash of a file
+ * This is used to create a unique identifier for documents without needing IPFS
+ * @param {File} file - File to hash
+ * @returns {Promise<string>} Hex string of the hash
+ */
+const generateFileHash = async (file) => {
+  const arrayBuffer = await file.arrayBuffer()
+  const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  return hashHex
 }
 
 /**
  * Upload file to IPFS
- * @param {File} file - File to upload
- * @returns {Promise<string>} IPFS hash
+ * For Stellar dApp, we don't actually upload to IPFS
+ * Instead, we generate a SHA-256 hash of the file as a document identifier
+ * The actual document verification is done off-chain by the Land Inspector
+ * @param {File} file - File to process
+ * @returns {Promise<string>} Document hash
  */
 export const uploadToIPFS = async (file) => {
   try {
-    const client = getIPFSClient()
-    if (!client) {
-      throw new Error('IPFS client not initialized')
-    }
-
-    // Show loading toast
-    const toastId = toast.loading('Uploading to IPFS...')
-
-    // Convert file to buffer
-    const fileBuffer = await file.arrayBuffer()
-    const buffer = Buffer.from(fileBuffer)
-
-    // Upload to IPFS
-    const result = await client.add(buffer, {
-      progress: (prog) => {
-        const percentage = Math.round((prog / file.size) * 100)
-        toast.update(toastId, {
-          render: `Uploading to IPFS... ${percentage}%`,
-          isLoading: true,
-        })
-      },
-    })
-
-    // Update toast
+    const toastId = toast.loading('Processing document...')
+    
+    // Generate SHA-256 hash of the file
+    const hash = await generateFileHash(file)
+    
+    // Simulate processing time for better UX
+    await new Promise(resolve => setTimeout(resolve, 500))
+    
     toast.update(toastId, {
-      render: 'File uploaded to IPFS successfully!',
+      render: '✓ Document processed successfully',
       type: 'success',
       isLoading: false,
-      autoClose: 3000,
+      autoClose: 2000,
     })
-
-    return result.path
+    
+    console.log('Document Hash (SHA-256):', hash)
+    console.log('Document Name:', file.name)
+    console.log('Document Size:', file.size, 'bytes')
+    
+    // Return hash prefixed with 'doc_' to indicate it's a document hash
+    return `doc_${hash.substring(0, 40)}`
   } catch (error) {
-    console.error('IPFS upload error:', error)
-    toast.error(`Failed to upload to IPFS: ${error.message}`)
+    console.error('Document processing error:', error)
+    toast.error(`Failed to process document: ${error.message}`)
     throw error
   }
 }
 
 /**
- * Upload JSON data to IPFS
- * @param {Object} data - JSON data to upload
- * @returns {Promise<string>} IPFS hash
+ * Upload JSON data (simplified for Stellar dApp)
+ * Generates a hash of the JSON data
+ * @param {Object} data - JSON data to process
+ * @returns {Promise<string>} Data hash
  */
 export const uploadJSONToIPFS = async (data) => {
   try {
-    const client = getIPFSClient()
-    if (!client) {
-      throw new Error('IPFS client not initialized')
-    }
-
     const jsonString = JSON.stringify(data)
-    const buffer = Buffer.from(jsonString)
-
-    const result = await client.add(buffer)
-    toast.success('Data uploaded to IPFS!')
+    const encoder = new TextEncoder()
+    const uint8Array = encoder.encode(jsonString)
     
-    return result.path
+    // Generate SHA-256 hash
+    const hashBuffer = await crypto.subtle.digest('SHA-256', uint8Array)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+    
+    toast.success('Data processed successfully')
+    return `json_${hashHex.substring(0, 40)}`
   } catch (error) {
-    console.error('IPFS JSON upload error:', error)
-    toast.error(`Failed to upload data: ${error.message}`)
+    console.error('JSON processing error:', error)
+    toast.error(`Failed to process data: ${error.message}`)
     throw error
   }
 }
 
 /**
- * Upload multiple files to IPFS
- * @param {File[]} files - Array of files to upload
- * @returns {Promise<string[]>} Array of IPFS hashes
+ * Process multiple files
+ * @param {File[]} files - Array of files to process
+ * @returns {Promise<string[]>} Array of document hashes
  */
 export const uploadMultipleToIPFS = async (files) => {
   try {
-    const toastId = toast.loading(`Uploading ${files.length} files to IPFS...`)
+    const toastId = toast.loading(`Processing ${files.length} files...`)
     const hashes = []
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
+      
       toast.update(toastId, {
-        render: `Uploading file ${i + 1}/${files.length}...`,
+        render: `Processing file ${i + 1}/${files.length}...`,
         isLoading: true,
       })
 
@@ -120,7 +101,7 @@ export const uploadMultipleToIPFS = async (files) => {
     }
 
     toast.update(toastId, {
-      render: 'All files uploaded successfully!',
+      render: 'All files processed successfully!',
       type: 'success',
       isLoading: false,
       autoClose: 3000,
@@ -128,66 +109,59 @@ export const uploadMultipleToIPFS = async (files) => {
 
     return hashes
   } catch (error) {
-    console.error('Multiple upload error:', error)
-    toast.error('Failed to upload some files')
+    console.error('Multiple file processing error:', error)
+    toast.error('Failed to process some files')
     throw error
   }
 }
 
 /**
- * Get IPFS gateway URL for a hash
- * @param {string} hash - IPFS hash
- * @param {string} gateway - Gateway URL (default: ipfs.io)
- * @returns {string} Full gateway URL
+ * Get document identifier (for display purposes)
+ * @param {string} hash - Document hash
+ * @returns {string} Shortened hash for display
  */
-export const getIPFSUrl = (hash, gateway = 'https://ipfs.io') => {
+export const getIPFSUrl = (hash) => {
   if (!hash) return ''
   
-  // Remove 'ipfs://' prefix if present
-  const cleanHash = hash.replace('ipfs://', '')
+  // For document hashes, return a display-friendly format
+  if (hash.startsWith('doc_') || hash.startsWith('json_')) {
+    return `Document ID: ${hash.substring(0, 20)}...`
+  }
   
-  return `${gateway}/ipfs/${cleanHash}`
+  return hash
 }
 
 /**
- * Retrieve data from IPFS
- * @param {string} hash - IPFS hash
- * @returns {Promise<Uint8Array>} File data
+ * Retrieve document info (simplified for Stellar dApp)
+ * In a real implementation, this would query a backend service
+ * @param {string} hash - Document hash
+ * @returns {Promise<Object>} Document metadata
  */
 export const retrieveFromIPFS = async (hash) => {
   try {
-    const client = getIPFSClient()
-    if (!client) {
-      throw new Error('IPFS client not initialized')
+    // In a Stellar dApp, document verification is done off-chain
+    // This is a placeholder that returns metadata about the hash
+    return {
+      hash,
+      verified: false,
+      message: 'Document verification pending by Land Inspector'
     }
-
-    const stream = client.cat(hash)
-    const chunks = []
-
-    for await (const chunk of stream) {
-      chunks.push(chunk)
-    }
-
-    return Buffer.concat(chunks)
   } catch (error) {
-    console.error('IPFS retrieve error:', error)
-    toast.error(`Failed to retrieve from IPFS: ${error.message}`)
+    console.error('Document retrieval error:', error)
     throw error
   }
 }
 
 /**
- * Retrieve JSON data from IPFS
- * @param {string} hash - IPFS hash
- * @returns {Promise<Object>} Parsed JSON data
+ * Retrieve JSON data (simplified)
+ * @param {string} hash - Data hash
+ * @returns {Promise<Object>} Metadata
  */
 export const retrieveJSONFromIPFS = async (hash) => {
   try {
-    const data = await retrieveFromIPFS(hash)
-    const jsonString = Buffer.from(data).toString('utf8')
-    return JSON.parse(jsonString)
+    return await retrieveFromIPFS(hash)
   } catch (error) {
-    console.error('IPFS JSON retrieve error:', error)
+    console.error('JSON retrieval error:', error)
     toast.error(`Failed to retrieve JSON: ${error.message}`)
     throw error
   }
@@ -270,21 +244,16 @@ export const createThumbnail = (file, maxWidth = 200, maxHeight = 200) => {
 }
 
 /**
- * Pin file to ensure it stays on IPFS
- * @param {string} hash - IPFS hash to pin
+ * Pin/save document hash (for Stellar dApp, this is a no-op)
+ * @param {string} hash - Document hash
  */
 export const pinToIPFS = async (hash) => {
   try {
-    const client = getIPFSClient()
-    if (!client) {
-      throw new Error('IPFS client not initialized')
-    }
-
-    await client.pin.add(hash)
-    toast.success('File pinned to IPFS')
+    // In Stellar dApp, hashes are stored on-chain
+    console.log('Document hash stored on blockchain:', hash)
+    return true
   } catch (error) {
-    console.error('IPFS pin error:', error)
-    toast.error(`Failed to pin: ${error.message}`)
+    console.error('Pin error:', error)
     throw error
   }
 }

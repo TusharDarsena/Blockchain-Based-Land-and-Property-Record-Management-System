@@ -9,6 +9,55 @@ import { toast } from 'react-toastify'
 const CONTRACT_ID = import.meta.env.VITE_LAND_REGISTRY_CONTRACT_ID
 
 /**
+ * Call a read-only contract function
+ * Returns null if the contract function panics (e.g., user not found)
+ */
+const callReadOnlyFunction = async (functionName, ...args) => {
+  try {
+    const server = getSorobanServer()
+    const contract = new StellarSdk.Contract(CONTRACT_ID)
+    
+    // Create a dummy account for simulation
+    const account = new StellarSdk.Account(
+      'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+      '0'
+    )
+    
+    const transaction = new StellarSdk.TransactionBuilder(account, {
+      fee: StellarSdk.BASE_FEE,
+      networkPassphrase: NETWORK_PASSPHRASE,
+    })
+      .addOperation(contract.call(functionName, ...args))
+      .setTimeout(30)
+      .build()
+    
+    const simulation = await server.simulateTransaction(transaction)
+    
+    if (StellarSdk.SorobanRpc.Api.isSimulationSuccess(simulation)) {
+      return StellarSdk.scValToNative(simulation.result.retval)
+    } else {
+      // Check if this is a contract panic (user not found, etc.)
+      const errorMessage = simulation.error || ''
+      if (errorMessage.includes('UnreachableCodeReached') || 
+          errorMessage.includes('InvalidAction') ||
+          errorMessage.includes('WasmVm')) {
+        // Contract panicked - likely means the entity doesn't exist
+        return null
+      }
+      throw new Error(`Simulation failed: ${errorMessage}`)
+    }
+  } catch (error) {
+    // If it's already a handled error, rethrow
+    if (error.message && error.message.startsWith('Simulation failed:')) {
+      throw error
+    }
+    // Log and return null for other errors
+    console.error(`Error calling ${functionName}:`, error)
+    return null
+  }
+}
+
+/**
  * Build and submit a contract transaction
  */
 const buildAndSubmitTransaction = async (publicKey, operation) => {
@@ -16,30 +65,49 @@ const buildAndSubmitTransaction = async (publicKey, operation) => {
     const server = getSorobanServer()
     const sourceAccount = await server.getAccount(publicKey)
 
-    // Build transaction
+    // Check if account has sufficient balance
+    const balances = sourceAccount.balances
+    const xlmBalance = balances.find(b => b.asset_type === 'native')
+    if (!xlmBalance || parseFloat(xlmBalance.balance) < 1) {
+      throw new Error('Insufficient XLM balance. Please fund your account with testnet XLM from https://laboratory.stellar.org/#account-creator')
+    }
+
+    console.log('Account XLM balance:', xlmBalance.balance)
+
+    // Build transaction with higher fee for Soroban
     const transaction = new StellarSdk.TransactionBuilder(sourceAccount, {
-      fee: StellarSdk.BASE_FEE,
+      fee: (100000).toString(), // Higher fee for Soroban contracts
       networkPassphrase: NETWORK_PASSPHRASE,
     })
       .addOperation(operation)
       .setTimeout(180)
       .build()
 
+    console.log('Built transaction, simulating...')
+
     // Simulate transaction
     const simulatedTx = await server.simulateTransaction(transaction)
     
     if (StellarSdk.SorobanRpc.Api.isSimulationError(simulatedTx)) {
+      console.error('Simulation error:', simulatedTx.error)
       throw new Error(`Simulation failed: ${simulatedTx.error}`)
     }
 
-    // Prepare transaction
+    console.log('Simulation successful, preparing transaction...')
+
+    // Prepare transaction with simulated results
     const preparedTx = StellarSdk.SorobanRpc.assembleTransaction(
       transaction,
       simulatedTx
     ).build()
 
+    console.log('Transaction prepared, requesting signature from Freighter...')
+    console.log('Transaction XDR length:', preparedTx.toXDR().length)
+
     // Sign with Freighter
     const signedXdr = await signTransactionWithFreighter(preparedTx.toXDR())
+    
+    console.log('Transaction signed, parsing...')
     const signedTx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE)
 
     // Submit transaction
@@ -114,14 +182,7 @@ export const initializeContract = async (publicKey, inspectorAddress, name, age,
 
 export const isLandInspector = async (address) => {
   try {
-    const server = getSorobanServer()
-    const contract = new StellarSdk.Contract(CONTRACT_ID)
-    
-    const result = await server.call(
-      contract.call('is_land_inspector', toScVal.address(address))
-    )
-    
-    return StellarSdk.scValToNative(result.returnValue)
+    return await callReadOnlyFunction('is_land_inspector', toScVal.address(address))
   } catch (error) {
     console.error('Error checking inspector:', error)
     return false
@@ -196,14 +257,7 @@ export const updateSeller = async (
 
 export const getSeller = async (sellerAddress) => {
   try {
-    const server = getSorobanServer()
-    const contract = new StellarSdk.Contract(CONTRACT_ID)
-    
-    const result = await server.call(
-      contract.call('get_seller', toScVal.address(sellerAddress))
-    )
-    
-    return StellarSdk.scValToNative(result.returnValue)
+    return await callReadOnlyFunction('get_seller', toScVal.address(sellerAddress))
   } catch (error) {
     console.error('Error fetching seller:', error)
     return null
@@ -282,14 +336,7 @@ export const updateBuyer = async (
 
 export const getBuyer = async (buyerAddress) => {
   try {
-    const server = getSorobanServer()
-    const contract = new StellarSdk.Contract(CONTRACT_ID)
-    
-    const result = await server.call(
-      contract.call('get_buyer', toScVal.address(buyerAddress))
-    )
-    
-    return StellarSdk.scValToNative(result.returnValue)
+    return await callReadOnlyFunction('get_buyer', toScVal.address(buyerAddress))
   } catch (error) {
     console.error('Error fetching buyer:', error)
     return null
@@ -478,14 +525,7 @@ export const verifyLand = async (inspectorAddress, landId) => {
 
 export const getLand = async (landId) => {
   try {
-    const server = getSorobanServer()
-    const contract = new StellarSdk.Contract(CONTRACT_ID)
-    
-    const result = await server.call(
-      contract.call('get_land', toScVal.u32(landId))
-    )
-    
-    return StellarSdk.scValToNative(result.returnValue)
+    return await callReadOnlyFunction('get_land', toScVal.u32(landId))
   } catch (error) {
     console.error('Error fetching land:', error)
     return null
@@ -494,11 +534,7 @@ export const getLand = async (landId) => {
 
 export const getLandsCount = async () => {
   try {
-    const server = getSorobanServer()
-    const contract = new StellarSdk.Contract(CONTRACT_ID)
-    
-    const result = await server.call(contract.call('get_lands_count'))
-    return StellarSdk.scValToNative(result.returnValue)
+    return await callReadOnlyFunction('get_lands_count')
   } catch (error) {
     console.error('Error fetching lands count:', error)
     return 0
@@ -507,14 +543,7 @@ export const getLandsCount = async () => {
 
 export const isLandVerified = async (landId) => {
   try {
-    const server = getSorobanServer()
-    const contract = new StellarSdk.Contract(CONTRACT_ID)
-    
-    const result = await server.call(
-      contract.call('is_land_verified', toScVal.u32(landId))
-    )
-    
-    return StellarSdk.scValToNative(result.returnValue)
+    return await callReadOnlyFunction('is_land_verified', toScVal.u32(landId))
   } catch (error) {
     console.error('Error checking land verification:', error)
     return false
@@ -607,14 +636,7 @@ export const makePayment = async (buyerAddress, requestId) => {
 
 export const getRequest = async (requestId) => {
   try {
-    const server = getSorobanServer()
-    const contract = new StellarSdk.Contract(CONTRACT_ID)
-    
-    const result = await server.call(
-      contract.call('get_request', toScVal.u32(requestId))
-    )
-    
-    return StellarSdk.scValToNative(result.returnValue)
+    return await callReadOnlyFunction('get_request', toScVal.u32(requestId))
   } catch (error) {
     console.error('Error fetching request:', error)
     return null
@@ -623,11 +645,7 @@ export const getRequest = async (requestId) => {
 
 export const getRequestsCount = async () => {
   try {
-    const server = getSorobanServer()
-    const contract = new StellarSdk.Contract(CONTRACT_ID)
-    
-    const result = await server.call(contract.call('get_requests_count'))
-    return StellarSdk.scValToNative(result.returnValue)
+    return await callReadOnlyFunction('get_requests_count')
   } catch (error) {
     console.error('Error fetching requests count:', error)
     return 0
@@ -638,18 +656,11 @@ export const getRequestsCount = async () => {
 
 export const getFractionalOwnership = async (landId, fractionId) => {
   try {
-    const server = getSorobanServer()
-    const contract = new StellarSdk.Contract(CONTRACT_ID)
-    
-    const result = await server.call(
-      contract.call(
-        'get_fractional_ownership',
-        toScVal.u32(landId),
-        toScVal.u32(fractionId)
-      )
+    return await callReadOnlyFunction(
+      'get_fractional_ownership',
+      toScVal.u32(landId),
+      toScVal.u32(fractionId)
     )
-    
-    return StellarSdk.scValToNative(result.returnValue)
   } catch (error) {
     console.error('Error fetching fractional ownership:', error)
     return null
@@ -658,14 +669,7 @@ export const getFractionalOwnership = async (landId, fractionId) => {
 
 export const getLandFractionOwners = async (landId) => {
   try {
-    const server = getSorobanServer()
-    const contract = new StellarSdk.Contract(CONTRACT_ID)
-    
-    const result = await server.call(
-      contract.call('get_land_fraction_owners', toScVal.u32(landId))
-    )
-    
-    return StellarSdk.scValToNative(result.returnValue)
+    return await callReadOnlyFunction('get_land_fraction_owners', toScVal.u32(landId))
   } catch (error) {
     console.error('Error fetching fraction owners:', error)
     return []
@@ -674,14 +678,7 @@ export const getLandFractionOwners = async (landId) => {
 
 export const getUserFractionalLands = async (userAddress) => {
   try {
-    const server = getSorobanServer()
-    const contract = new StellarSdk.Contract(CONTRACT_ID)
-    
-    const result = await server.call(
-      contract.call('get_user_fractional_lands', toScVal.address(userAddress))
-    )
-    
-    return StellarSdk.scValToNative(result.returnValue)
+    return await callReadOnlyFunction('get_user_fractional_lands', toScVal.address(userAddress))
   } catch (error) {
     console.error('Error fetching user fractional lands:', error)
     return []
@@ -690,14 +687,7 @@ export const getUserFractionalLands = async (userAddress) => {
 
 export const getAvailableFractions = async (landId) => {
   try {
-    const server = getSorobanServer()
-    const contract = new StellarSdk.Contract(CONTRACT_ID)
-    
-    const result = await server.call(
-      contract.call('get_available_fractions', toScVal.u32(landId))
-    )
-    
-    return StellarSdk.scValToNative(result.returnValue)
+    return await callReadOnlyFunction('get_available_fractions', toScVal.u32(landId))
   } catch (error) {
     console.error('Error fetching available fractions:', error)
     return 0
@@ -729,14 +719,7 @@ export const transferOwnership = async (inspectorAddress, landId, newOwnerAddres
 
 export const getLandOwner = async (landId) => {
   try {
-    const server = getSorobanServer()
-    const contract = new StellarSdk.Contract(CONTRACT_ID)
-    
-    const result = await server.call(
-      contract.call('get_land_owner', toScVal.u32(landId))
-    )
-    
-    return StellarSdk.scValToNative(result.returnValue)
+    return await callReadOnlyFunction('get_land_owner', toScVal.u32(landId))
   } catch (error) {
     console.error('Error fetching land owner:', error)
     return null

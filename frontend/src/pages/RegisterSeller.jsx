@@ -325,7 +325,7 @@ const RegisterSeller = () => {
 
                     <button
                       type="button"
-                      onClick={() => document.getElementById('document').click()}
+                      onClick={() => window.document.getElementById('document').click()}
                       className="btn btn-outline"
                     >
                       Change File
@@ -342,7 +342,7 @@ const RegisterSeller = () => {
                     </p>
                     <button
                       type="button"
-                      onClick={() => document.getElementById('document').click()}
+                      onClick={() => window.document.getElementById('document').click()}
                       className="btn btn-outline mt-4"
                     >
                       Choose File

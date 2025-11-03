@@ -5,6 +5,7 @@ import { useStellar } from '../contexts/StellarContext'
 import { registerBuyer } from '../utils/contractInteraction'
 import { uploadToIPFS, validateFile } from '../utils/ipfs'
 import { isValidEmail, isValidAadhar, isValidPAN } from '../utils/helpers'
+import { checkAccountReadiness, showTroubleshootingTips } from '../utils/diagnostics'
 import { ArrowLeft, Upload, FileText, CheckCircle } from 'lucide-react'
 import { toast } from 'react-toastify'
 
@@ -112,9 +113,17 @@ const RegisterBuyer = () => {
     setIsSubmitting(true)
 
     try {
-      // Upload document to IPFS
-      toast.info('Uploading document to IPFS...')
-      const ipfsHash = await uploadToIPFS(document)
+      // Check account readiness before proceeding
+      const isReady = await checkAccountReadiness(publicKey)
+      if (!isReady) {
+        showTroubleshootingTips()
+        return
+      }
+
+      // Generate document hash (SHA-256) for on-chain storage
+      // Note: Actual document verification is done off-chain by Land Inspector
+      toast.info('Processing document...')
+      const documentHash = await uploadToIPFS(document)
 
       // Register buyer on blockchain
       toast.info('Submitting registration to blockchain...')
@@ -125,7 +134,7 @@ const RegisterBuyer = () => {
         formData.city,
         formData.aadharNumber,
         formData.panNumber.toUpperCase(),
-        ipfsHash,
+        documentHash,
         formData.email
       )
 
@@ -354,7 +363,7 @@ const RegisterBuyer = () => {
 
                     <button
                       type="button"
-                      onClick={() => document.getElementById('document').click()}
+                      onClick={() => window.document.getElementById('document').click()}
                       className="btn btn-outline"
                     >
                       Change File
@@ -371,7 +380,7 @@ const RegisterBuyer = () => {
                     </p>
                     <button
                       type="button"
-                      onClick={() => document.getElementById('document').click()}
+                      onClick={() => window.document.getElementById('document').click()}
                       className="btn btn-outline mt-4"
                     >
                       Choose File
