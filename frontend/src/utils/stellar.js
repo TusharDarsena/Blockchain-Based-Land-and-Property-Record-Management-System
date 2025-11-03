@@ -115,6 +115,9 @@ export const xlmToStroops = (xlm) => {
   return Math.floor(Number(xlm) * 10000000)
 }
 
+// Export constants
+export { NETWORK, NETWORK_PASSPHRASE, HORIZON_URL, SOROBAN_RPC_URL }
+
 export default {
   getStellarServer,
   getSorobanServer,
@@ -129,4 +132,6 @@ export default {
   xlmToStroops,
   NETWORK,
   NETWORK_PASSPHRASE,
+  HORIZON_URL,
+  SOROBAN_RPC_URL,
 }
