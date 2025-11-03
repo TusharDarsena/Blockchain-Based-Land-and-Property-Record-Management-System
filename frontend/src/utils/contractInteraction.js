@@ -783,6 +783,36 @@ export const getAllRequests = async () => {
   }
 }
 
+// Helper functions for getting all buyers and sellers
+// Note: These are simplified implementations. In production, you'd want
+// the contract to expose count/list functions for buyers and sellers
+
+export const getAllBuyers = async () => {
+  try {
+    // This is a placeholder implementation
+    // In production, the contract should expose get_buyers_count() and iteration
+    // For now, return empty array - buyers will be tracked in the app state
+    console.log('getAllBuyers: Contract integration pending')
+    return []
+  } catch (error) {
+    console.error('Error fetching all buyers:', error)
+    return []
+  }
+}
+
+export const getAllSellers = async () => {
+  try {
+    // This is a placeholder implementation
+    // In production, the contract should expose get_sellers_count() and iteration
+    // For now, return empty array - sellers will be tracked in the app state
+    console.log('getAllSellers: Contract integration pending')
+    return []
+  } catch (error) {
+    console.error('Error fetching all sellers:', error)
+    return []
+  }
+}
+
 export default {
   // Initialization
   initializeContract,
@@ -792,11 +822,13 @@ export default {
   registerSeller,
   updateSeller,
   getSeller,
+  getAllSellers,
   
   // Buyer
   registerBuyer,
   updateBuyer,
   getBuyer,
+  getAllBuyers,
   
   // Verification
   verifySeller,
