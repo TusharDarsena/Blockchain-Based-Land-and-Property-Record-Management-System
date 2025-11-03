@@ -18,7 +18,7 @@ Design Style and Theme
 
 modern, vibrant, and visually dynamic design.
 
-Stellar Brand Colors:
+Brand Colors:
 
 Generous Gold: #FDDA24
 Black: #0F0F0F
