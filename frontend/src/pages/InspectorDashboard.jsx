@@ -12,17 +12,35 @@ import {
   verifyBuyer,
   verifyLand,
   rejectSeller,
-  rejectBuyer
+  rejectBuyer,
+  isLandInspector,
+  initializeContract
 } from '../utils/contractInteraction'
 import { toast } from 'react-toastify'
-import { Users, Home, CheckCircle, XCircle, Clock, User } from 'lucide-react'
+import { Users, Home, CheckCircle, XCircle, Clock, User, Settings } from 'lucide-react'
 
 const InspectorDashboard = () => {
+  const { publicKey } = useStellar()
   const [loading, setLoading] = useState(true)
+  const [isInitialized, setIsInitialized] = useState(null)
+  const [showSetup, setShowSetup] = useState(false)
 
   useEffect(() => {
-    setTimeout(() => setLoading(false), 1000)
+    checkInitialization()
   }, [])
+
+  const checkInitialization = async () => {
+    try {
+      // Check if contract is initialized by checking if there's an inspector
+      const inspectorExists = await isLandInspector('GDMORAOEBRU43PT4L4FLIJQGJTHZTXKCYDBIVKN676XY3AI7VLHJMJWR')
+      setIsInitialized(inspectorExists !== null && inspectorExists !== false)
+    } catch (error) {
+      console.error('Error checking initialization:', error)
+      setIsInitialized(false)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -38,72 +56,242 @@ const InspectorDashboard = () => {
       <Navbar title="Land Inspector Dashboard" />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Contract Setup Banner (only show if not initialized) */}
+        {isInitialized === false && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 p-6 rounded-xl bg-yellow-500/10 border border-yellow-500/30"
+          >
+            <div className="flex items-start gap-4">
+              <Settings className="w-6 h-6 text-yellow-500 flex-shrink-0 mt-1" />
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-yellow-500 mb-2">
+                  Contract Not Initialized
+                </h3>
+                <p className="text-gray-400 mb-4">
+                  The land registry contract needs to be initialized before you can manage verifications. 
+                  This is a one-time setup that designates the Land Inspector.
+                </p>
+                <button
+                  onClick={() => setShowSetup(!showSetup)}
+                  className="btn btn-primary"
+                >
+                  {showSetup ? 'Hide Setup' : 'Initialize Contract'}
+                </button>
+              </div>
+            </div>
+            
+            {showSetup && <ContractSetup onComplete={checkInitialization} />}
+          </motion.div>
+        )}
+
         {/* Welcome Banner */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8 p-6 rounded-xl bg-gradient-stellar"
-        >
-          <h3 className="text-lg font-semibold text-dark mb-2">
-            Welcome, Land Inspector
-          </h3>
-          <p className="text-gray-800">
-            Review and verify buyer registrations, seller registrations, and land listings.
-          </p>
-        </motion.div>
+        {isInitialized && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 p-6 rounded-xl bg-gradient-stellar"
+          >
+            <h3 className="text-lg font-semibold text-dark mb-2">
+              Welcome, Land Inspector
+            </h3>
+            <p className="text-gray-800">
+              Review and verify buyer registrations, seller registrations, and land listings.
+            </p>
+          </motion.div>
+        )}
 
         {/* Navigation Tabs */}
-        <div className="flex gap-4 mb-8 overflow-x-auto">
-          <NavLink
-            to="/inspector"
-            end
-            className={({ isActive }) =>
-              `px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
-                isActive
-                  ? 'bg-gradient-stellar text-dark'
-                  : 'bg-gray-800/50 text-gray-400 hover:text-stellar-gold'
-              }`
-            }
-          >
-            <Users className="w-4 h-4 inline mr-2" />
-            Buyer Verifications
-          </NavLink>
-          <NavLink
-            to="/inspector/sellers"
-            className={({ isActive }) =>
-              `px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
-                isActive
-                  ? 'bg-gradient-stellar text-dark'
-                  : 'bg-gray-800/50 text-gray-400 hover:text-stellar-gold'
-              }`
-            }
-          >
-            <User className="w-4 h-4 inline mr-2" />
-            Seller Verifications
-          </NavLink>
-          <NavLink
-            to="/inspector/lands"
-            className={({ isActive }) =>
-              `px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
-                isActive
-                  ? 'bg-gradient-stellar text-dark'
-                  : 'bg-gray-800/50 text-gray-400 hover:text-stellar-gold'
-              }`
-            }
-          >
-            <Home className="w-4 h-4 inline mr-2" />
-            Land Verifications
-          </NavLink>
-        </div>
+        {isInitialized && (
+          <>
+            <div className="flex gap-4 mb-8 overflow-x-auto">
+              <NavLink
+                to="/inspector"
+                end
+                className={({ isActive }) =>
+                  `px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
+                    isActive
+                      ? 'bg-gradient-stellar text-dark'
+                      : 'bg-gray-800/50 text-gray-400 hover:text-stellar-gold'
+                  }`
+                }
+              >
+                <Users className="w-4 h-4 inline mr-2" />
+                Buyer Verifications
+              </NavLink>
+              <NavLink
+                to="/inspector/sellers"
+                className={({ isActive }) =>
+                  `px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
+                    isActive
+                      ? 'bg-gradient-stellar text-dark'
+                      : 'bg-gray-800/50 text-gray-400 hover:text-stellar-gold'
+                  }`
+                }
+              >
+                <User className="w-4 h-4 inline mr-2" />
+                Seller Verifications
+              </NavLink>
+              <NavLink
+                to="/inspector/lands"
+                className={({ isActive }) =>
+                  `px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
+                    isActive
+                      ? 'bg-gradient-stellar text-dark'
+                      : 'bg-gray-800/50 text-gray-400 hover:text-stellar-gold'
+                  }`
+                }
+              >
+                <Home className="w-4 h-4 inline mr-2" />
+                Land Verifications
+              </NavLink>
+            </div>
 
-        {/* Routes */}
-        <Routes>
-          <Route path="/" element={<BuyerVerifications />} />
-          <Route path="/sellers" element={<SellerVerifications />} />
-          <Route path="/lands" element={<LandVerifications />} />
-        </Routes>
+            {/* Routes */}
+            <Routes>
+              <Route path="/" element={<BuyerVerifications />} />
+              <Route path="/sellers" element={<SellerVerifications />} />
+              <Route path="/lands" element={<LandVerifications />} />
+            </Routes>
+          </>
+        )}
       </div>
     </div>
+  )
+}
+
+// Contract Setup Component
+const ContractSetup = ({ onComplete }) => {
+  const { publicKey } = useStellar()
+  const [formData, setFormData] = useState({
+    inspectorAddress: 'GDMORAOEBRU43PT4L4FLIJQGJTHZTXKCYDBIVKN676XY3AI7VLHJMJWR',
+    name: '',
+    age: '',
+    designation: ''
+  })
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+
+    try {
+      await initializeContract(
+        publicKey,
+        formData.inspectorAddress,
+        formData.name,
+        parseInt(formData.age),
+        formData.designation
+      )
+      toast.success('Contract initialized successfully!')
+      onComplete()
+    } catch (error) {
+      console.error('Error initializing contract:', error)
+      toast.error(`Initialization failed: ${error.message}`)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      className="mt-6 p-6 rounded-xl bg-gray-800/50 border border-gray-700"
+    >
+      <h4 className="text-xl font-semibold text-stellar-gold mb-4">
+        Initialize Land Registry Contract
+      </h4>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-400 mb-2">
+            Inspector Wallet Address
+          </label>
+          <input
+            type="text"
+            value={formData.inspectorAddress}
+            onChange={(e) => setFormData({ ...formData, inspectorAddress: e.target.value })}
+            className="input w-full bg-gray-700/50"
+            required
+            readOnly
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            This address will have inspector privileges (pre-filled)
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-2">
+              Inspector Name
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="input w-full"
+              placeholder="e.g., John Doe"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-2">
+              Age
+            </label>
+            <input
+              type="number"
+              value={formData.age}
+              onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+              className="input w-full"
+              placeholder="e.g., 45"
+              min="18"
+              max="100"
+              required
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-400 mb-2">
+            Designation
+          </label>
+          <input
+            type="text"
+            value={formData.designation}
+            onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+            className="input w-full"
+            placeholder="e.g., Government Land Officer"
+            required
+          />
+        </div>
+
+        <div className="flex gap-4">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="btn btn-primary flex-1"
+          >
+            {submitting ? (
+              <span className="flex items-center justify-center gap-2">
+                <div className="spinner"></div>
+                Initializing...
+              </span>
+            ) : (
+              'Initialize Contract'
+            )}
+          </button>
+        </div>
+
+        <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
+          <p className="text-sm text-blue-400">
+            <strong>Note:</strong> This action can only be performed once. The inspector address cannot be changed after initialization.
+          </p>
+        </div>
+      </form>
+    </motion.div>
   )
 }
 

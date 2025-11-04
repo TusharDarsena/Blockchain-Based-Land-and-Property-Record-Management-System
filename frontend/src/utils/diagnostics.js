@@ -1,22 +1,24 @@
 import { toast } from 'react-toastify'
-import { getSorobanServer } from './stellar'
+import { getSorobanServer, getStellarServer } from './stellar'
 
 /**
  * Check if account is funded and ready for transactions
  */
 export const checkAccountReadiness = async (publicKey) => {
   try {
-    const server = getSorobanServer()
-    const account = await server.getAccount(publicKey)
+    // Use Horizon server for accurate balance info
+    const horizonServer = getStellarServer()
+    const account = await horizonServer.loadAccount(publicKey)
     
-    // Check XLM balance
-    const balances = account.balances
-    const xlmBalance = balances.find(b => b.asset_type === 'native')
+    console.log('Account loaded from Horizon')
+    
+    // Get XLM balance from Horizon (most reliable)
+    const xlmBalance = account.balances.find(b => b.asset_type === 'native')
     const balance = xlmBalance ? parseFloat(xlmBalance.balance) : 0
     
     console.log('Account Diagnostics:')
     console.log('- Public Key:', publicKey)
-    console.log('- XLM Balance:', balance)
+    console.log('- XLM Balance:', balance, 'XLM')
     console.log('- Sequence Number:', account.sequence)
     
     if (balance < 1) {

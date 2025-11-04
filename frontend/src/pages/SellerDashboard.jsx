@@ -248,7 +248,7 @@ const AddLand = () => {
           parseInt(formData.area),
           formData.city,
           formData.state,
-          parseInt(formData.price),
+          BigInt(formData.price) * BigInt(10000000), // Convert to stroops (7 decimals for XLM-like precision)
           parseInt(formData.propertyPid),
           parseInt(formData.physicalSurveyNumber),
           imageHashString,
@@ -262,7 +262,7 @@ const AddLand = () => {
           parseInt(formData.area),
           formData.city,
           formData.state,
-          parseInt(formData.price),
+          BigInt(formData.price) * BigInt(10000000), // Convert to stroops (7 decimals for XLM-like precision)
           parseInt(formData.propertyPid),
           parseInt(formData.physicalSurveyNumber),
           imageHashString,

@@ -22,7 +22,16 @@ const Login = () => {
   const checkUserStatus = async () => {
     setChecking(true)
     try {
-      // Check if user is Land Inspector
+      // FIRST: Check if this is the designated inspector address (even if contract not initialized)
+      const DESIGNATED_INSPECTOR = 'GDMORAOEBRU43PT4L4FLIJQGJTHZTXKCYDBIVKN676XY3AI7VLHJMJWR'
+      if (publicKey === DESIGNATED_INSPECTOR) {
+        updateUserData('inspector', { address: publicKey })
+        toast.success('Welcome, Land Inspector!')
+        navigate('/inspector')
+        return
+      }
+
+      // Check if user is Land Inspector (for initialized contracts)
       const inspector = await isLandInspector(publicKey)
       if (inspector) {
         updateUserData('inspector', { address: publicKey })

@@ -740,6 +740,18 @@ impl LandRegistryContract {
         env.storage().instance().get(&DataKey::BuyerCount).unwrap_or(0)
     }
 
+    pub fn get_buyer_list(env: Env) -> Vec<Address> {
+        env.storage().instance()
+            .get(&DataKey::BuyerList)
+            .unwrap_or(Vec::new(&env))
+    }
+
+    pub fn get_seller_list(env: Env) -> Vec<Address> {
+        env.storage().instance()
+            .get(&DataKey::SellerList)
+            .unwrap_or(Vec::new(&env))
+    }
+
     pub fn get_requests_count(env: Env) -> u32 {
         env.storage().instance().get(&DataKey::RequestCount).unwrap_or(0)
     }
