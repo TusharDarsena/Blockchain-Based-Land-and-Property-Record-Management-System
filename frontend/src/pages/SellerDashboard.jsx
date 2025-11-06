@@ -176,6 +176,7 @@ const MyListings = () => {
 // Add Land Component
 const AddLand = () => {
   const { publicKey } = useStellar()
+  const { userData } = useAuth()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     area: '',
@@ -214,6 +215,21 @@ const AddLand = () => {
     if (!publicKey) {
       toast.error('Please connect your wallet first')
       return
+    }
+
+    // Check if seller is verified
+    if (userData && !userData.verified) {
+      toast.error('You must be verified by a Land Inspector before adding land properties')
+      return
+    }
+
+    // Validate fractional shares
+    if (formData.isFractional) {
+      const shares = parseInt(formData.totalShares)
+      if (!shares || shares < 1 || shares > 100) {
+        toast.error('Total shares must be between 1 and 100')
+        return
+      }
     }
 
     setLoading(true)
@@ -296,6 +312,23 @@ const AddLand = () => {
 
   return (
     <div className="max-w-3xl mx-auto">
+      {/* Verification Warning */}
+      {userData && !userData.verified && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 p-6 rounded-xl bg-yellow-500/10 border border-yellow-500/30"
+        >
+          <h3 className="text-lg font-semibold text-yellow-400 mb-2">
+            Verification Required
+          </h3>
+          <p className="text-gray-400">
+            Your account must be verified by a Land Inspector before you can add land properties. 
+            Please wait for verification to complete.
+          </p>
+        </motion.div>
+      )}
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -423,7 +456,7 @@ const AddLand = () => {
               >
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">
-                    Total Shares *
+                    Total Shares * (Max: 100)
                   </label>
                   <input
                     type="number"
@@ -432,7 +465,12 @@ const AddLand = () => {
                     onChange={handleInputChange}
                     className="input w-full"
                     required={formData.isFractional}
+                    min="1"
+                    max="100"
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Must be between 1 and 100 fractions
+                  </p>
                 </div>
 
                 <div>
